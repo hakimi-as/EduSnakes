@@ -4586,6 +4586,7 @@ const Game = {
         <button class="btn btn-ghost btn-sm" style="width:100%"
                 onclick="Game._exitAsk()">← Exit Game</button>
       </div>`;
+    Remote.pushState();
   },
 
   /* ── Roll dice ── */
@@ -5175,6 +5176,7 @@ const Game = {
     if (overlay) overlay.style.display = this.paused ? 'flex' : 'none';
     if (btn)     btn.textContent = this.paused ? '▶' : '⏸';
     if (!this.paused) this._sidebar();
+    Remote.pushState();
   },
 
   /* ── Show wildcard overlay, then execute event ── */
