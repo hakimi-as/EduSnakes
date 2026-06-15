@@ -4418,6 +4418,7 @@ const Game = {
     const canvas = document.getElementById('game-canvas');
     BoardRenderer.init(canvas, this.board, this.players);
     this._sidebar();
+    Remote_UI.showBtn();
 
     // Responsive resize
     if (this._resizeOff) this._resizeOff();
@@ -4975,6 +4976,7 @@ const Game = {
     History.save(App.gameResult);
     Leaderboard.record(p);
     this._sidebar();
+    Remote_UI.hideBtn();
     setTimeout(() => App.go('summary'), 700);   // skip modal — summary screen celebrates
   },
 
@@ -6533,6 +6535,94 @@ const Summary = {
   },
 };
 
+
+/* ═══════════════════════════════════════════════════════════════
+   REMOTE_UI — Teacher-facing UI for enabling controller mode
+   ═══════════════════════════════════════════════════════════════ */
+const Remote_UI = {
+
+  /* Show the "Use Tablet" button in the game topbar */
+  showBtn() {
+    const btn = document.getElementById('ctrl-btn');
+    if (btn) btn.style.display = '';
+  },
+
+  hideBtn() {
+    const btn = document.getElementById('ctrl-btn');
+    if (btn) btn.style.display = 'none';
+  },
+
+  /* Open the host setup modal — generates a room code + shows QR */
+  openHostModal() {
+    if (Remote.active()) {
+      this._showConnectedModal();
+      return;
+    }
+
+    UI.showModal(`
+      <div class="modal-title">📱 Use Tablet as Controller</div>
+      <div id="_rm-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0">
+        <div class="ctrl-waiting" style="color:var(--text2);font-size:13px">Starting room…</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="UI.closeModal()">Cancel</button>
+      </div>
+    `);
+
+    Remote.startHost(
+      /* onReady */ (code) => {
+        const joinUrl = window.location.href.split('?')[0] + '?join=' + code;
+        const qrSrc   = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(joinUrl)}`;
+        const body = document.getElementById('_rm-body');
+        if (!body) return;
+        body.innerHTML = `
+          <p class="ctrl-hint">Open this app on the tablet and enter the code, or scan the QR:</p>
+          <div class="ctrl-qr"><img src="${qrSrc}" alt="QR code" onerror="this.style.display='none'"></div>
+          <div class="ctrl-code">${code}</div>
+          <div class="ctrl-status" id="ctrl-status-badge">
+            <span class="dot"></span> Waiting for tablet…
+          </div>`;
+      },
+      /* onConnect */ () => {
+        const badge = document.getElementById('ctrl-status-badge');
+        if (badge) {
+          badge.className = 'ctrl-status connected';
+          badge.innerHTML = '<span class="dot"></span> Tablet connected!';
+        }
+        setTimeout(() => UI.closeModal(), 1200);
+        this._updateTopbarBadge(true);
+        Remote_Controller.wireHostHandlers();
+        Remote.pushState();
+        UI.toast('📱 Tablet connected — controller mode active', 'success');
+      },
+      /* onDisconnect */ () => {
+        this._updateTopbarBadge(false);
+        UI.toast('📱 Tablet disconnected', 'error');
+      }
+    );
+  },
+
+  _showConnectedModal() {
+    UI.showModal(`
+      <div class="modal-title">📱 Tablet Connected</div>
+      <p style="color:var(--text2);font-size:13px;text-align:center;padding:8px 0">
+        Room code: <strong style="color:var(--lime);letter-spacing:0.1em">${Remote.roomCode}</strong><br>
+        The tablet is controlling this session.
+      </p>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="Remote.stop();Remote_UI._updateTopbarBadge(false);UI.closeModal();UI.toast('Controller disconnected','info')">Disconnect Tablet</button>
+        <button class="btn btn-ghost" onclick="UI.closeModal()">Close</button>
+      </div>
+    `);
+  },
+
+  _updateTopbarBadge(connected) {
+    const btn = document.getElementById('ctrl-btn');
+    if (!btn) return;
+    btn.title = connected ? 'Tablet connected — click to manage' : 'Use a tablet controller';
+    btn.style.opacity = connected ? '1' : '0.7';
+  },
+};
 
 /* ═══════════════════════════════════════════════════════════════
    REMOTE — WebRTC peer-to-peer controller link (PeerJS)
