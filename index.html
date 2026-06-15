@@ -5493,6 +5493,14 @@ const QuestionPopup = {
     const el = document.getElementById('qpop-result');
     if (!el) { this._done(correct); return; }
 
+    // In host+remote mode: push result to controller immediately so player sees it
+    // without pressing any button. Teacher presses Continue on the host.
+    if (Remote.isHost() && Remote.active()) {
+      Remote.pushResult(correct, this._q?.explanation || explanation || '');
+      Remote_Controller._pendingCb = { cb: this._cb, correct };
+      this._cb = null;
+    }
+
     const icon    = correct ? '🎉' : '😬';
     const heading = correct ? 'Correct!' : 'Incorrect';
 
@@ -5519,16 +5527,15 @@ const QuestionPopup = {
   _done(correct) {
     clearInterval(this._timer);
     this._timer = null;
-    // If host mode and controller connected: push result, wait for controller's dismissResult
-    if (Remote.isHost() && Remote.active()) {
-      Remote.pushResult(correct, this._q?.explanation || '');
-      // Store callback so wireHostHandlers can invoke it when dismissResult arrives
-      Remote_Controller._pendingCb = { cb: this._cb, correct };
-      this._cb = null;
-      return;
-    }
     const overlay = document.getElementById('qpop-overlay');
     if (overlay) { overlay.classList.remove('open'); overlay.innerHTML = ''; }
+    // In host+remote mode the callback was stored in _pendingCb by _showResult()
+    const pending = Remote_Controller._pendingCb;
+    if (pending) {
+      Remote_Controller._pendingCb = null;
+      if (pending.cb) pending.cb(pending.correct);
+      return;
+    }
     if (this._cb) { const cb = this._cb; this._cb = null; cb(correct); }
   },
 };
