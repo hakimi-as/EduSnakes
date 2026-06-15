@@ -6719,18 +6719,9 @@ const Remote_Controller = {
   /* ── HOST: Wire message handlers that arrive FROM controller ── */
   wireHostHandlers() {
     Remote.on('action', msg => {
-      if (msg.action === 'roll')          { Game.roll(); }
-      if (msg.action === 'useItem')       { Game.useItem(msg.index); }
-      if (msg.action === 'answer')        { Remote_Controller._hostReceiveAnswer(msg.value); }
-      if (msg.action === 'dismissResult') {
-        const overlay = document.getElementById('qpop-overlay');
-        if (overlay) overlay.classList.remove('open');
-        const pending = Remote_Controller._pendingCb;
-        if (pending) {
-          Remote_Controller._pendingCb = null;
-          if (pending.cb) pending.cb(pending.correct);
-        }
-      }
+      if (msg.action === 'roll')    { Game.roll(); }
+      if (msg.action === 'useItem') { Game.useItem(msg.index); }
+      if (msg.action === 'answer')  { Remote_Controller._hostReceiveAnswer(msg.value); }
     });
   },
 
