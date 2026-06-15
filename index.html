@@ -5035,6 +5035,10 @@ const Game = {
     Leaderboard.record(p);
     this._sidebar();
     Remote_UI.hideBtn();
+    if (Remote.isHost() && Remote.active()) {
+      Remote.send({ type: 'state', gameState: 'finished', currentPlayer: Remote.buildState()?.currentPlayer || {}, boardSize: Game.cfg?.boardSize ?? 100, paused: false });
+      setTimeout(() => Remote.stop(), 2000);
+    }
     setTimeout(() => App.go('summary'), 700);   // skip modal — summary screen celebrates
   },
 
