@@ -6846,6 +6846,7 @@ const Remote_Controller = {
   ───────────────────────────────────────────────────────── */
   _onResult(msg) {
     this._stopTimer();
+    document.getElementById('ctrler-active')?.classList.add('ctrler-q-active');
 
     const el = document.getElementById('ctrler-qpop');
     if (!el) return;
