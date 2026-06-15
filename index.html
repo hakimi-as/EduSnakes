@@ -6738,7 +6738,7 @@ const Remote_Controller = {
     const q = QuestionPopup._q;
     if (!q) return;
     if (value === '__timeout__') {
-      QuestionPopup._done(false);
+      QuestionPopup._timeUp();
       return;
     }
     if (q.type === 'objective') {
