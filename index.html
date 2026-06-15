@@ -1869,10 +1869,6 @@
       .board-card { padding: 14px 8px; }
       .review-grid { grid-template-columns: 1fr; }
     }
-    @media (max-width: 380px) {
-      .subjects-grid { grid-template-columns: 1fr; }
-    }
-
     /* ── Controller: phone responsive (< 540 px) ── */
     @media (max-width: 540px) {
       /* Shrink join-screen top padding so content doesn't push below fold */
@@ -1894,6 +1890,9 @@
       .ctrler-q-active .ctrler-streak { display: none !important; }
       /* Hide inventory in compact mode — not usable during a question anyway */
       .ctrler-q-active .ctrler-inv    { display: none; }
+    }
+    @media (max-width: 380px) {
+      .subjects-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
