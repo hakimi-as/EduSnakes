@@ -1920,6 +1920,12 @@
           <span class="bm-label">Settings</span>
           <span class="bm-arrow">›</span>
         </button>
+        <button class="btn-menu" style="background:var(--surface);color:var(--text);border:1px solid var(--border)"
+                onclick="App.go('controller')">
+          <span class="bm-icon">📱</span>
+          <span class="bm-label">Join as Controller</span>
+          <span class="bm-arrow">›</span>
+        </button>
       </div>
 
       <div class="menu-lb" id="menu-lb"></div>
@@ -7246,6 +7252,9 @@ const App = {
     });
 
     this.go('main');
+    // Auto-navigate to controller screen if ?join= param is present
+    const joinCode = new URLSearchParams(window.location.search).get('join');
+    if (joinCode) App.go('controller');
     console.log('%c EduSnakes v2.0 ✓ ', 'background:#A8E63D;color:#0F1923;font-weight:bold;border-radius:4px;padding:2px 6px');
   },
 };
