@@ -6966,6 +6966,14 @@ const Remote_UI = {
       /* onDisconnect */ () => {
         this._updateTopbarBadge(false);
         UI.toast('📱 Tablet disconnected', 'error');
+        // If a question was pending controller's answer, unblock the game
+        if (Remote_Controller._pendingCb) {
+          const p = Remote_Controller._pendingCb;
+          Remote_Controller._pendingCb = null;
+          const overlay = document.getElementById('qpop-overlay');
+          if (overlay) { overlay.classList.remove('open'); overlay.innerHTML = ''; }
+          if (p.cb) p.cb(p.correct);
+        }
       }
     );
   },
