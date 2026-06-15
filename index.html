@@ -6862,14 +6862,10 @@ const Remote_Controller = {
     }
     el.appendChild(resultDiv);
 
-    const continueBtn = document.createElement('button');
-    continueBtn.className = 'ctrler-submit-btn';
-    continueBtn.textContent = 'Continue →';
-    continueBtn.onclick = () => {
-      Remote.send({ type: 'action', action: 'dismissResult' });
-      this._hideQuestion();
-    };
-    el.appendChild(continueBtn);
+    const waiting = document.createElement('div');
+    waiting.className = 'ctrler-waiting';
+    waiting.textContent = '⏳ Waiting for teacher…';
+    el.appendChild(waiting);
   },
 
   /* ─────────────────────────────────────────────────────────
