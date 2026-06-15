@@ -5036,7 +5036,7 @@ const Game = {
     this._sidebar();
     Remote_UI.hideBtn();
     if (Remote.isHost() && Remote.active()) {
-      Remote.send({ type: 'state', gameState: 'finished', currentPlayer: Remote.buildState()?.currentPlayer || {}, boardSize: Game.cfg?.boardSize ?? 100, paused: false });
+      Remote.pushState();
       setTimeout(() => Remote.stop(), 2000);
     }
     setTimeout(() => App.go('summary'), 700);   // skip modal — summary screen celebrates
@@ -5312,14 +5312,13 @@ const QuestionPopup = {
     if (Remote.isHost() && Remote.active()) {
       Remote.pushQuestion(question, timerSecs);
       // Disable interactive elements on the host popup so only the tablet can answer
-      setTimeout(() => {
-        const overlay = document.getElementById('qpop-overlay');
-        if (!overlay) return;
+      const overlay = document.getElementById('qpop-overlay');
+      if (overlay) {
         overlay.querySelectorAll('.qpop-opt, .qpop-submit-btn, .qpop-input').forEach(el => {
           el.disabled = true;
           el.style.cursor = 'default';
         });
-      }, 50);
+      }
     }
   },
 
@@ -5489,6 +5488,7 @@ const QuestionPopup = {
       Remote.pushResult(correct, this._q?.explanation || '');
       // Store callback so wireHostHandlers can invoke it when dismissResult arrives
       Remote_Controller._pendingCb = { cb: this._cb, correct };
+      this._cb = null;
       return;
     }
     const overlay = document.getElementById('qpop-overlay');
@@ -6628,7 +6628,6 @@ const Remote_Controller = {
   _timerInterval: null,
   _answered:      false,
   _pendingCb:     null,
-  _lastCorrect:   false,
 
   /* Called by App.go('controller') — parse URL param and pre-fill */
   initScreen() {
@@ -6704,6 +6703,7 @@ const Remote_Controller = {
     } else {
       const inp = document.getElementById('qpop-written-in');
       if (inp) { inp.value = value; QuestionPopup._submitWritten(); }
+      else { QuestionPopup._done(false); }
     }
   },
 
@@ -6785,7 +6785,7 @@ const Remote_Controller = {
     const optsHTML = q.type === 'objective'
       ? q.options.map((o, i) => `
           <button class="ctrler-opt" id="ctrler-opt-${i}" onclick="Remote_Controller.sendAnswer(${i})">
-            ${'ABCD'[i]}. ${o}
+            ${'ABCD'[i]}. ${UI.esc(o)}
           </button>`).join('')
       : `<input class="ctrler-written-in" id="ctrler-written-in" type="text" placeholder="Your answer…"
                onkeydown="if(event.key==='Enter')Remote_Controller.sendWritten()">
@@ -6796,8 +6796,8 @@ const Remote_Controller = {
     el.style.display = '';
     el.innerHTML = `
       ${timerHTML}
-      <div class="ctrler-qpop-ctx">${ctxMap[q.context] || '❓ Question'} · ${q.difficulty} · ${q.topicName}</div>
-      <div class="ctrler-qpop-text">${q.text}</div>
+      <div class="ctrler-qpop-ctx">${UI.esc(ctxMap[q.context] || '❓ Question')} · ${UI.esc(q.difficulty)} · ${UI.esc(q.topicName)}</div>
+      <div class="ctrler-qpop-text">${UI.esc(q.text)}</div>
       ${optsHTML}`;
 
     if (secs > 0) this._startTimer(secs);
@@ -6809,7 +6809,6 @@ const Remote_Controller = {
   ───────────────────────────────────────────────────────── */
   _onResult(msg) {
     this._stopTimer();
-    Remote_Controller._lastCorrect = msg.correct;
 
     const el = document.getElementById('ctrler-qpop');
     if (!el) return;
@@ -7031,6 +7030,11 @@ const Remote = {
      HOST: Start listening for a controller to connect
   ──────────────────────────────────────────────────────────── */
   startHost(onReady, onConnect, onDisconnect) {
+    if (typeof Peer === 'undefined') {
+      UI.toast('Controller requires internet to load PeerJS. Please reload.', 'error');
+      this.role = null;
+      return;
+    }
     this.role     = 'host';
     this.roomCode = this._mkCode();
     this.peer     = new Peer(this._peerId(this.roomCode));
@@ -7060,6 +7064,11 @@ const Remote = {
      CONTROLLER: Join a host by room code
   ──────────────────────────────────────────────────────────── */
   joinHost(code, onConnect, onDisconnect) {
+    if (typeof Peer === 'undefined') {
+      UI.toast('Controller requires internet to load PeerJS. Please reload.', 'error');
+      this.role = null;
+      return;
+    }
     this.role     = 'controller';
     this.roomCode = code;
     this.peer     = new Peer();   // random peer id for controller
