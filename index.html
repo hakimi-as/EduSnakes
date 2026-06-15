@@ -6427,13 +6427,15 @@ const Remote = {
   _handlers: {},     // { msgType: fn }
 
   /* ── Is controller mode active? ── */
-  active()  { return this.role !== null && this.conn !== null; },
+  active()  { return this.role !== null && this.conn !== null && this.conn.open; },
   isHost()  { return this.role === 'host'; },
   isCtrler(){ return this.role === 'controller'; },
 
   /* ── Generate a 4-digit room code ── */
   _mkCode() {
-    return String(Math.floor(1000 + Math.random() * 9000));
+    const arr = new Uint16Array(1);
+    crypto.getRandomValues(arr);
+    return String(1000 + (arr[0] % 9000));
   },
 
   /* ── PeerJS peer ID format ── */
@@ -6450,10 +6452,15 @@ const Remote = {
     this.peer.on('open', () => onReady(this.roomCode));
 
     this.peer.on('connection', conn => {
+      if (this.conn) { try { this.conn.close(); } catch(_){} }
       this.conn = conn;
       conn.on('open', () => {
         onConnect();
         this._listenConn(conn, onDisconnect);
+      });
+      conn.on('error', err => {
+        UI.toast('Controller connection error: ' + err.type, 'error');
+        this.stop();
       });
     });
 
@@ -6523,7 +6530,8 @@ const Remote = {
      Packages just enough for the controller to render
   ──────────────────────────────────────────────────────────── */
   buildState() {
-    const p = Game.players[Game.curIdx];
+    const p = Game.players?.[Game.curIdx];
+    if (!p) return null;
     return {
       type:          'state',
       gameState:     Game.state,   // 'roll' | 'moving' | 'finished'
@@ -6544,7 +6552,8 @@ const Remote = {
   /* Push current state to controller (host only) */
   pushState() {
     if (!this.isHost() || !this.active()) return;
-    this.send(this.buildState());
+    const state = this.buildState();
+    if (state) this.send(state);
   },
 
   /* Push a question to the controller (host only) */
