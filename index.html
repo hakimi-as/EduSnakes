@@ -1736,6 +1736,125 @@
     .sum-badge-sub    { font-family: var(--font-body); font-size: 11px; color: var(--text2); }
     .sum-rank-badge   { font-size: 14px; margin-left: 4px; vertical-align: middle; }
 
+    /* ── Remote / Controller status ── */
+    .ctrl-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-family: var(--font-body);
+      color: var(--text2); padding: 4px 10px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface2);
+    }
+    .ctrl-status .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text2);
+    }
+    .ctrl-status.connected .dot { background: var(--lime); }
+    .ctrl-status.connected { color: var(--lime); border-color: rgba(168,230,61,0.3); }
+    .ctrl-qr img { width: 160px; height: 160px; border-radius: 8px; }
+    .ctrl-code {
+      font-family: var(--font-head); font-size: 52px; font-weight: 800;
+      letter-spacing: 0.15em; color: var(--lime); text-align: center;
+      margin: 8px 0;
+    }
+    .ctrl-hint { font-size: 12px; color: var(--text2); text-align: center; line-height: 1.5; }
+
+    /* Controller screen */
+    #screen-controller {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      min-height: 100vh; padding: 24px 20px 40px;
+      background: var(--bg);
+    }
+    .ctrler-wrap { width: 100%; max-width: 420px; }
+    .ctrler-join { display: flex; flex-direction: column; gap: 16px; align-items: center; padding-top: 60px; }
+    .ctrler-join h2 { font-family: var(--font-head); font-size: 28px; color: var(--text); text-align: center; }
+    .ctrler-code-input {
+      width: 100%; max-width: 240px;
+      font-family: var(--font-head); font-size: 36px; font-weight: 800;
+      letter-spacing: 0.2em; text-align: center;
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      padding: 16px 12px;
+    }
+    .ctrler-code-input:focus { border-color: var(--lime); outline: none; }
+    .ctrler-player-card {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+      text-align: center; margin-bottom: 20px;
+    }
+    .ctrler-emo  { font-size: 64px; line-height: 1; }
+    .ctrler-name { font-family: var(--font-head); font-size: 28px; font-weight: 800; margin: 12px 0 4px; }
+    .ctrler-pos  { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+    .ctrler-streak { font-size: 13px; color: var(--amber); }
+    .ctrler-inv  { display: flex; gap: 12px; justify-content: center; margin: 16px 0; flex-wrap: wrap; }
+    .ctrler-inv-slot {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 16px; min-width: 100px;
+    }
+    .ctrler-inv-emo  { font-size: 28px; }
+    .ctrler-inv-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+    .ctrler-roll-btn {
+      width: 100%; min-height: 72px;
+      font-family: var(--font-head); font-size: 22px; font-weight: 800;
+      background: var(--lime); color: #0A1018;
+      border: none; border-radius: var(--radius);
+      cursor: pointer; transition: transform 0.1s ease;
+      margin-top: 8px;
+    }
+    .ctrler-roll-btn:active { transform: scale(0.97); }
+    .ctrler-roll-btn:disabled { opacity: 0.4; cursor: default; }
+    .ctrler-waiting {
+      font-size: 14px; color: var(--text2); text-align: center;
+      padding: 28px 0; font-family: var(--font-body);
+    }
+    .ctrler-qpop {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .ctrler-qpop-ctx { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
+    .ctrler-qpop-text { font-family: var(--font-head); font-size: 18px; color: var(--text); line-height: 1.4; }
+    .ctrler-opt {
+      width: 100%; padding: 14px 16px; text-align: left;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: var(--font-body); font-size: 14px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .ctrler-opt:hover:not(:disabled) { background: var(--surface); border-color: var(--lime); }
+    .ctrler-opt.correct { background: rgba(168,230,61,0.15); border-color: var(--lime); color: var(--lime); }
+    .ctrler-opt.wrong   { background: rgba(255,107,107,0.12); border-color: var(--coral); color: var(--coral); }
+    .ctrler-opt:disabled { cursor: default; }
+    .ctrler-written-in {
+      width: 100%; padding: 14px; border-radius: var(--radius);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-body); font-size: 15px;
+    }
+    .ctrler-written-in:focus { border-color: var(--lime); outline: none; }
+    .ctrler-submit-btn {
+      width: 100%; padding: 16px;
+      background: var(--lime); color: #0A1018;
+      font-family: var(--font-head); font-size: 16px; font-weight: 800;
+      border: none; border-radius: var(--radius); cursor: pointer;
+    }
+    .ctrler-result {
+      text-align: center; padding: 20px;
+      font-family: var(--font-head); font-size: 24px; font-weight: 800;
+    }
+    .ctrler-result.correct { color: var(--lime); }
+    .ctrler-result.wrong   { color: var(--coral); }
+    .ctrler-result-expl { font-family: var(--font-body); font-size: 13px; color: var(--text2); margin-top: 8px; }
+    .ctrler-timer-bar {
+      height: 5px; background: var(--surface2); border-radius: 3px;
+      overflow: hidden; margin-bottom: 4px;
+    }
+    .ctrler-timer-fill {
+      height: 100%; background: var(--lime); border-radius: 3px;
+      transform-origin: left; transition: transform 1s linear;
+    }
+    .ctrler-timer-fill.urgent { background: var(--coral); }
+
     /* ═══════════════════════════════════════════════════════
        RESPONSIVE
     ═══════════════════════════════════════════════════════ */
@@ -1843,6 +1962,7 @@
     <div class="game-topbar">
       <span class="gt-title">🐍 EduSnakes</span>
       <span class="gt-spacer"></span>
+      <button class="theme-toggle-btn" id="ctrl-btn" onclick="Remote_UI.openHostModal()" title="Use a tablet controller" style="display:none">📱</button>
       <button class="pause-btn" id="pause-btn" onclick="Game.togglePause()" title="Pause game (Esc)">⏸</button>
       <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="App.toggleTheme()" title="Toggle dark / light mode">☀</button>
     </div>
