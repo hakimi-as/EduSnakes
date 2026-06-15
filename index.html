@@ -5482,8 +5482,8 @@ const QuestionPopup = {
       return;
     }
     const overlay = document.getElementById('qpop-overlay');
-    if (overlay) overlay.classList.remove('open');
-    if (this._cb) this._cb(correct);
+    if (overlay) { overlay.classList.remove('open'); overlay.innerHTML = ''; }
+    if (this._cb) { const cb = this._cb; this._cb = null; cb(correct); }
   },
 };
 
