@@ -6588,6 +6588,289 @@ const Summary = {
 
 
 /* ═══════════════════════════════════════════════════════════════
+   REMOTE_CONTROLLER — Tablet-side logic + host action dispatch
+   ═══════════════════════════════════════════════════════════════ */
+const Remote_Controller = {
+  _timerInterval: null,
+  _answered:      false,
+  _pendingCb:     null,
+  _lastCorrect:   false,
+
+  /* Called by App.go('controller') — parse URL param and pre-fill */
+  initScreen() {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('join');
+    if (code) {
+      const inp = document.getElementById('ctrler-code-in');
+      if (inp) inp.value = code;
+    }
+  },
+
+  /* ── Join button handler ── */
+  join() {
+    const inp  = document.getElementById('ctrler-code-in');
+    const err  = document.getElementById('ctrler-join-err');
+    const code = (inp?.value || '').trim();
+    if (!/^\d{4}$/.test(code)) {
+      if (err) { err.textContent = 'Please enter a 4-digit code.'; err.style.display = ''; }
+      return;
+    }
+    if (err) err.style.display = 'none';
+
+    Remote.joinHost(
+      code,
+      /* onConnect */ () => {
+        document.getElementById('ctrler-join').style.display   = 'none';
+        document.getElementById('ctrler-active').style.display = '';
+        this._wireHandlers();
+        UI.toast('Connected to host!', 'success');
+      },
+      /* onDisconnect */ () => {
+        document.getElementById('ctrler-join').style.display   = '';
+        document.getElementById('ctrler-active').style.display = 'none';
+        UI.toast('Disconnected from host', 'error');
+      }
+    );
+  },
+
+  /* ── Wire Remote message handlers (controller side) ── */
+  _wireHandlers() {
+    Remote.on('state',    msg => this._onState(msg));
+    Remote.on('question', msg => this._onQuestion(msg));
+    Remote.on('result',   msg => this._onResult(msg));
+  },
+
+  /* ── HOST: Wire message handlers that arrive FROM controller ── */
+  wireHostHandlers() {
+    Remote.on('action', msg => {
+      if (msg.action === 'roll')          { Game.roll(); }
+      if (msg.action === 'useItem')       { Game.useItem(msg.index); }
+      if (msg.action === 'answer')        { Remote_Controller._hostReceiveAnswer(msg.value); }
+      if (msg.action === 'dismissResult') {
+        const overlay = document.getElementById('qpop-overlay');
+        if (overlay) overlay.classList.remove('open');
+        const pending = Remote_Controller._pendingCb;
+        if (pending) {
+          Remote_Controller._pendingCb = null;
+          if (pending.cb) pending.cb(pending.correct);
+        }
+      }
+    });
+  },
+
+  _hostReceiveAnswer(value) {
+    const q = QuestionPopup._q;
+    if (!q) return;
+    if (value === '__timeout__') {
+      QuestionPopup._done(false);
+      return;
+    }
+    if (q.type === 'objective') {
+      QuestionPopup._pickOpt(value);
+    } else {
+      const inp = document.getElementById('qpop-written-in');
+      if (inp) { inp.value = value; QuestionPopup._submitWritten(); }
+    }
+  },
+
+  /* ─────────────────────────────────────────────────────────
+     CONTROLLER: Handle incoming 'state' message
+  ───────────────────────────────────────────────────────── */
+  _onState(msg) {
+    this._stopTimer();
+    this._hideQuestion();
+
+    if (msg.gameState === 'finished') {
+      const el = document.getElementById('ctrler-active');
+      if (el) el.innerHTML = `<div class="ctrler-waiting" style="padding:60px 0;font-size:18px">🏆 Game Over!<br><br><button class="btn btn-ghost" onclick="App.go('main')">← Main Menu</button></div>`;
+      return;
+    }
+
+    const p = msg.currentPlayer;
+
+    const emoEl    = document.getElementById('ctrler-emo');
+    const nameEl   = document.getElementById('ctrler-name');
+    const posEl    = document.getElementById('ctrler-pos');
+    const streakEl = document.getElementById('ctrler-streak');
+    if (emoEl)    emoEl.textContent  = p.emoji;
+    if (nameEl)   nameEl.textContent = p.name;
+    if (posEl)    posEl.textContent  = `Square ${p.position} / ${msg.boardSize}`;
+    if (streakEl) {
+      if (p.streak > 1) { streakEl.textContent = `🔥 ${p.streak} streak`; streakEl.style.display = ''; }
+      else              { streakEl.style.display = 'none'; }
+    }
+
+    this._renderInventory(p.inventory, msg.gameState === 'roll');
+
+    const rollBtn = document.getElementById('ctrler-roll-btn');
+    const waiting = document.getElementById('ctrler-waiting');
+    if (msg.gameState === 'roll' && !msg.paused) {
+      if (rollBtn) { rollBtn.style.display = ''; rollBtn.disabled = false; }
+      if (waiting) waiting.style.display = 'none';
+    } else {
+      if (rollBtn) rollBtn.style.display = 'none';
+      if (waiting) { waiting.textContent = msg.paused ? '⏸ Game paused' : '⏳ Waiting…'; waiting.style.display = ''; }
+    }
+  },
+
+  _renderInventory(inventory, canUse) {
+    const el = document.getElementById('ctrler-inv');
+    if (!el) return;
+    if (!inventory || !inventory.length) { el.innerHTML = ''; return; }
+    el.innerHTML = inventory.map((item, i) => `
+      <div class="ctrler-inv-slot">
+        <span class="ctrler-inv-emo">${item.emoji}</span>
+        <div class="ctrler-inv-name">${item.name}</div>
+        <button class="btn btn-outline btn-sm" onclick="Remote_Controller.sendUseItem(${i})"
+                ${canUse ? '' : 'disabled'}>USE</button>
+      </div>`).join('');
+  },
+
+  /* ─────────────────────────────────────────────────────────
+     CONTROLLER: Handle incoming 'question' message
+  ───────────────────────────────────────────────────────── */
+  _onQuestion(msg) {
+    this._answered = false;
+    this._stopTimer();
+    this._hideQuestion();
+
+    const rollBtn = document.getElementById('ctrler-roll-btn');
+    const waiting = document.getElementById('ctrler-waiting');
+    if (rollBtn) rollBtn.style.display = 'none';
+    if (waiting) waiting.style.display = 'none';
+
+    const q    = msg.question;
+    const secs = msg.timerSecs || 0;
+
+    const ctxMap = { ladder:'🪜 Ladder!', snake:'🐍 Snake!', bonus:'⭐ Bonus', powerup:'⭐ Power-up!', finish:'🏆 Finish!' };
+
+    const timerHTML = secs > 0 ? `
+      <div class="ctrler-timer-bar"><div class="ctrler-timer-fill" id="ct-fill"></div></div>
+      <div style="font-size:11px;color:var(--text2);text-align:right" id="ct-num">${secs}s</div>` : '';
+
+    const optsHTML = q.type === 'objective'
+      ? q.options.map((o, i) => `
+          <button class="ctrler-opt" id="ctrler-opt-${i}" onclick="Remote_Controller.sendAnswer(${i})">
+            ${'ABCD'[i]}. ${o}
+          </button>`).join('')
+      : `<input class="ctrler-written-in" id="ctrler-written-in" type="text" placeholder="Your answer…"
+               onkeydown="if(event.key==='Enter')Remote_Controller.sendWritten()">
+         <button class="ctrler-submit-btn" onclick="Remote_Controller.sendWritten()">✓ Submit</button>`;
+
+    const el = document.getElementById('ctrler-qpop');
+    if (!el) return;
+    el.style.display = '';
+    el.innerHTML = `
+      ${timerHTML}
+      <div class="ctrler-qpop-ctx">${ctxMap[q.context] || '❓ Question'} · ${q.difficulty} · ${q.topicName}</div>
+      <div class="ctrler-qpop-text">${q.text}</div>
+      ${optsHTML}`;
+
+    if (secs > 0) this._startTimer(secs);
+    if (q.type === 'written') setTimeout(() => document.getElementById('ctrler-written-in')?.focus(), 80);
+  },
+
+  /* ─────────────────────────────────────────────────────────
+     CONTROLLER: Handle incoming 'result' message
+  ───────────────────────────────────────────────────────── */
+  _onResult(msg) {
+    this._stopTimer();
+    Remote_Controller._lastCorrect = msg.correct;
+
+    const el = document.getElementById('ctrler-qpop');
+    if (!el) return;
+
+    el.querySelectorAll('.ctrler-opt, .ctrler-submit-btn, .ctrler-written-in').forEach(b => b.disabled = true);
+
+    const resultDiv = document.createElement('div');
+    resultDiv.className = `ctrler-result ${msg.correct ? 'correct' : 'wrong'}`;
+    resultDiv.innerHTML = msg.correct ? '✅ Correct!' : '❌ Wrong';
+    if (msg.explanation) {
+      const expl = document.createElement('div');
+      expl.className = 'ctrler-result-expl';
+      expl.textContent = msg.explanation;
+      resultDiv.appendChild(expl);
+    }
+    el.appendChild(resultDiv);
+
+    const continueBtn = document.createElement('button');
+    continueBtn.className = 'ctrler-submit-btn';
+    continueBtn.textContent = 'Continue →';
+    continueBtn.onclick = () => {
+      Remote.send({ type: 'action', action: 'dismissResult' });
+      this._hideQuestion();
+    };
+    el.appendChild(continueBtn);
+  },
+
+  /* ─────────────────────────────────────────────────────────
+     SEND ACTIONS to host
+  ───────────────────────────────────────────────────────── */
+  sendRoll() {
+    Remote.send({ type: 'action', action: 'roll' });
+    const btn = document.getElementById('ctrler-roll-btn');
+    if (btn) btn.disabled = true;
+  },
+
+  sendUseItem(index) {
+    Remote.send({ type: 'action', action: 'useItem', index });
+  },
+
+  sendAnswer(optIndex) {
+    if (this._answered) return;
+    this._answered = true;
+    Remote.send({ type: 'action', action: 'answer', value: optIndex });
+    document.querySelectorAll('.ctrler-opt').forEach(b => b.disabled = true);
+    const sel = document.getElementById(`ctrler-opt-${optIndex}`);
+    if (sel) sel.style.borderColor = 'var(--lime)';
+  },
+
+  sendWritten() {
+    if (this._answered) return;
+    const inp = document.getElementById('ctrler-written-in');
+    const val = inp?.value?.trim();
+    if (!val) { UI.toast('Type an answer first', 'error'); return; }
+    this._answered = true;
+    Remote.send({ type: 'action', action: 'answer', value: val });
+    if (inp) inp.disabled = true;
+  },
+
+  /* ─────────────────────────────────────────────────────────
+     TIMER helpers
+  ───────────────────────────────────────────────────────── */
+  _startTimer(totalSecs) {
+    let remaining = totalSecs;
+    this._timerInterval = setInterval(() => {
+      remaining--;
+      const fill  = document.getElementById('ct-fill');
+      const numEl = document.getElementById('ct-num');
+      if (numEl) numEl.textContent = remaining + 's';
+      if (fill) {
+        fill.style.transform = `scaleX(${Math.max(0, remaining / totalSecs)})`;
+        if (remaining <= 5) fill.classList.add('urgent');
+      }
+      if (remaining <= 0) {
+        this._stopTimer();
+        if (!this._answered) {
+          this._answered = true;
+          Remote.send({ type: 'action', action: 'answer', value: '__timeout__' });
+        }
+      }
+    }, 1000);
+  },
+
+  _stopTimer() {
+    if (this._timerInterval) { clearInterval(this._timerInterval); this._timerInterval = null; }
+  },
+
+  _hideQuestion() {
+    const el = document.getElementById('ctrler-qpop');
+    if (el) el.style.display = 'none';
+  },
+};
+
+
+/* ═══════════════════════════════════════════════════════════════
    REMOTE_UI — Teacher-facing UI for enabling controller mode
    ═══════════════════════════════════════════════════════════════ */
 const Remote_UI = {
