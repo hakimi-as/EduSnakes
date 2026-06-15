@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" defer></script>
   <style>
     /* ═══════════════════════════════════════════════════════
        DESIGN TOKENS — EduSnakes v2.0
@@ -6412,6 +6413,163 @@ const Summary = {
   },
 };
 
+
+/* ═══════════════════════════════════════════════════════════════
+   REMOTE — WebRTC peer-to-peer controller link (PeerJS)
+   Role: 'host' = laptop projecting the board
+         'controller' = tablet passed to each player
+   ═══════════════════════════════════════════════════════════════ */
+const Remote = {
+  role:      null,   // 'host' | 'controller' | null
+  peer:      null,   // PeerJS Peer instance
+  conn:      null,   // PeerJS DataConnection
+  roomCode:  null,   // 4-digit string (e.g. '7432')
+  _handlers: {},     // { msgType: fn }
+
+  /* ── Is controller mode active? ── */
+  active()  { return this.role !== null && this.conn !== null; },
+  isHost()  { return this.role === 'host'; },
+  isCtrler(){ return this.role === 'controller'; },
+
+  /* ── Generate a 4-digit room code ── */
+  _mkCode() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+  },
+
+  /* ── PeerJS peer ID format ── */
+  _peerId(code) { return `edusnakes-${code}`; },
+
+  /* ────────────────────────────────────────────────────────────
+     HOST: Start listening for a controller to connect
+  ──────────────────────────────────────────────────────────── */
+  startHost(onReady, onConnect, onDisconnect) {
+    this.role     = 'host';
+    this.roomCode = this._mkCode();
+    this.peer     = new Peer(this._peerId(this.roomCode));
+
+    this.peer.on('open', () => onReady(this.roomCode));
+
+    this.peer.on('connection', conn => {
+      this.conn = conn;
+      conn.on('open', () => {
+        onConnect();
+        this._listenConn(conn, onDisconnect);
+      });
+    });
+
+    this.peer.on('error', err => {
+      UI.toast('Controller link error: ' + err.type, 'error');
+      this.stop();
+    });
+  },
+
+  /* ────────────────────────────────────────────────────────────
+     CONTROLLER: Join a host by room code
+  ──────────────────────────────────────────────────────────── */
+  joinHost(code, onConnect, onDisconnect) {
+    this.role     = 'controller';
+    this.roomCode = code;
+    this.peer     = new Peer();   // random peer id for controller
+
+    this.peer.on('open', () => {
+      const conn = this.peer.connect(this._peerId(code));
+      this.conn  = conn;
+      conn.on('open', () => {
+        onConnect();
+        this._listenConn(conn, onDisconnect);
+      });
+      conn.on('error', err => {
+        UI.toast('Could not connect to host. Check the code.', 'error');
+        this.stop();
+      });
+    });
+
+    this.peer.on('error', err => {
+      UI.toast('Controller error: ' + err.type, 'error');
+      this.stop();
+    });
+  },
+
+  /* ── Attach data + close handlers to a connection ── */
+  _listenConn(conn, onDisconnect) {
+    conn.on('data', msg => {
+      const h = this._handlers[msg.type];
+      if (h) h(msg);
+    });
+    conn.on('close', () => {
+      this.conn = null;
+      onDisconnect();
+    });
+  },
+
+  /* ── Register a message handler ── */
+  on(type, fn) { this._handlers[type] = fn; },
+
+  /* ── Send a message to the peer ── */
+  send(msg) {
+    if (this.conn && this.conn.open) this.conn.send(msg);
+  },
+
+  /* ── Tear down everything ── */
+  stop() {
+    if (this.conn)  { try { this.conn.close();  } catch(_){} }
+    if (this.peer)  { try { this.peer.destroy(); } catch(_){} }
+    this.role = null; this.peer = null; this.conn = null; this.roomCode = null;
+    this._handlers = {};
+  },
+
+  /* ────────────────────────────────────────────────────────────
+     STATE SNAPSHOT — called by host after every game change
+     Packages just enough for the controller to render
+  ──────────────────────────────────────────────────────────── */
+  buildState() {
+    const p = Game.players[Game.curIdx];
+    return {
+      type:          'state',
+      gameState:     Game.state,   // 'roll' | 'moving' | 'finished'
+      currentPlayer: {
+        name:      p.name,
+        emoji:     p.emoji,
+        color:     p.color,
+        position:  p.position,
+        streak:    p.streak,
+        freeRoll:  p.freeRoll,
+        inventory: p.inventory || [],
+      },
+      boardSize: Game.cfg?.boardSize ?? 100,
+      paused:    Game.paused ?? false,
+    };
+  },
+
+  /* Push current state to controller (host only) */
+  pushState() {
+    if (!this.isHost() || !this.active()) return;
+    this.send(this.buildState());
+  },
+
+  /* Push a question to the controller (host only) */
+  pushQuestion(q, timerSecs) {
+    if (!this.isHost() || !this.active()) return;
+    this.send({
+      type:      'question',
+      question:  {
+        text:       q.text,
+        type:       q.type,
+        options:    q.options || [],
+        difficulty: q.difficulty,
+        context:    q._context || 'bonus',
+        topicName:  Bank.topic(q.topicId)?.name || '',
+      },
+      timerSecs,
+    });
+  },
+
+  /* Push question result to controller */
+  pushResult(correct, explanation) {
+    if (!this.isHost() || !this.active()) return;
+    this.send({ type: 'result', correct, explanation: explanation || '' });
+  },
+};
 
 /* ═══════════════════════════════════════════════════════════════
    APP CONTROLLER
