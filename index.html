@@ -1872,6 +1872,29 @@
     @media (max-width: 380px) {
       .subjects-grid { grid-template-columns: 1fr; }
     }
+
+    /* ── Controller: phone responsive (< 540 px) ── */
+    @media (max-width: 540px) {
+      /* Shrink join-screen top padding so content doesn't push below fold */
+      .ctrler-join { padding-top: 20px; }
+
+      /* Compact player strip while a question / result is on screen */
+      .ctrler-q-active .ctrler-player-card {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        text-align: left;
+        margin-bottom: 10px;
+      }
+      .ctrler-q-active .ctrler-emo    { font-size: 24px; line-height: 1; flex-shrink: 0; }
+      .ctrler-q-active .ctrler-name   { font-size: 14px; font-weight: 700; margin: 0; flex: 1; }
+      .ctrler-q-active .ctrler-pos    { font-size: 11px; color: var(--text2); margin: 0; }
+      .ctrler-q-active .ctrler-streak { display: none !important; }
+      /* Hide inventory in compact mode — not usable during a question anyway */
+      .ctrler-q-active .ctrler-inv    { display: none; }
+    }
   </style>
 </head>
 <body>
