@@ -5297,6 +5297,20 @@ const QuestionPopup = {
     }
 
     if (timerSecs > 0) this._startTimer();
+
+    // If a controller is connected: push question to tablet + disable local inputs
+    if (Remote.isHost() && Remote.active()) {
+      Remote.pushQuestion(question, timerSecs);
+      // Disable interactive elements on the host popup so only the tablet can answer
+      setTimeout(() => {
+        const overlay = document.getElementById('qpop-overlay');
+        if (!overlay) return;
+        overlay.querySelectorAll('.qpop-opt, .qpop-submit-btn, .qpop-input').forEach(el => {
+          el.disabled = true;
+          el.style.cursor = 'default';
+        });
+      }, 50);
+    }
   },
 
   /* ── Build popup HTML ── */
@@ -5458,10 +5472,18 @@ const QuestionPopup = {
 
   /* ── Final close + callback ── */
   _done(correct) {
-    this._stopTimer();
-    const el = document.getElementById('qpop-overlay');
-    if (el) { el.classList.remove('open'); el.innerHTML = ''; }
-    if (this._cb) { const cb = this._cb; this._cb = null; cb(correct); }
+    clearInterval(this._timer);
+    this._timer = null;
+    // If host mode and controller connected: push result, wait for controller's dismissResult
+    if (Remote.isHost() && Remote.active()) {
+      Remote.pushResult(correct, this._q?.explanation || '');
+      // Store callback so wireHostHandlers can invoke it when dismissResult arrives
+      Remote_Controller._pendingCb = { cb: this._cb, correct };
+      return;
+    }
+    const overlay = document.getElementById('qpop-overlay');
+    if (overlay) overlay.classList.remove('open');
+    if (this._cb) this._cb(correct);
   },
 };
 
