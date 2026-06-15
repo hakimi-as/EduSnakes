@@ -1995,6 +1995,57 @@
   </div>
 
   <!-- ════════════════════════════════════
+       SCREEN: CONTROLLER (tablet)
+  ════════════════════════════════════ -->
+  <div id="screen-controller" class="screen">
+    <div class="ctrler-wrap">
+
+      <!-- ── Join flow ── -->
+      <div id="ctrler-join" class="ctrler-join">
+        <div style="font-size:56px">📱</div>
+        <h2>Join as Controller</h2>
+        <p style="font-size:13px;color:var(--text2);text-align:center">
+          Enter the 4-digit code shown on the teacher's screen
+        </p>
+        <input id="ctrler-code-in" class="ctrler-code-input"
+               type="text" inputmode="numeric" maxlength="4"
+               placeholder="0000" autocomplete="off">
+        <button class="btn btn-primary btn-lg" onclick="Remote_Controller.join()">
+          Connect →
+        </button>
+        <div id="ctrler-join-err" style="color:var(--coral);font-size:13px;display:none"></div>
+      </div>
+
+      <!-- ── Active controller (hidden until connected) ── -->
+      <div id="ctrler-active" style="display:none">
+
+        <!-- Player card -->
+        <div class="ctrler-player-card" id="ctrler-player-card">
+          <div class="ctrler-emo" id="ctrler-emo">🎮</div>
+          <div class="ctrler-name" id="ctrler-name">—</div>
+          <div class="ctrler-pos"  id="ctrler-pos">Square 0</div>
+          <div class="ctrler-streak" id="ctrler-streak" style="display:none"></div>
+        </div>
+
+        <!-- Inventory -->
+        <div class="ctrler-inv" id="ctrler-inv"></div>
+
+        <!-- Roll button -->
+        <button id="ctrler-roll-btn" class="ctrler-roll-btn" onclick="Remote_Controller.sendRoll()">
+          🎲 Roll!
+        </button>
+
+        <!-- Waiting message (shown when it's not roll time) -->
+        <div id="ctrler-waiting" class="ctrler-waiting" style="display:none">⏳ Waiting…</div>
+
+        <!-- Question popup -->
+        <div id="ctrler-qpop" class="ctrler-qpop" style="display:none"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!--════════════════════════════════════
        SCREEN: SETTINGS (Phase 2)
   ════════════════════════════════════ -->
   <div id="screen-settings" class="screen">
@@ -6816,6 +6867,7 @@ const App = {
     if (screen === 'settings')         Settings.render();
     if (screen === 'game-board')     { Game.init(App.gameConfig); BGMusic.start(); }
     if (screen === 'summary')          Summary.render();
+    if (screen === 'controller')       Remote_Controller.initScreen();
     if (screen === 'main' || screen === 'summary') BGMusic.stop();
     if (screen === 'main') App.renderLeaderboard();
   },
