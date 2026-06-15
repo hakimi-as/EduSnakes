@@ -6808,6 +6808,7 @@ const Remote_Controller = {
     const waiting = document.getElementById('ctrler-waiting');
     if (rollBtn) rollBtn.style.display = 'none';
     if (waiting) waiting.style.display = 'none';
+    document.getElementById('ctrler-active')?.classList.add('ctrler-q-active');
 
     const q    = msg.question;
     const secs = msg.timerSecs || 0;
@@ -6935,6 +6936,7 @@ const Remote_Controller = {
   _hideQuestion() {
     const el = document.getElementById('ctrler-qpop');
     if (el) el.style.display = 'none';
+    document.getElementById('ctrler-active')?.classList.remove('ctrler-q-active');
   },
 };
 
